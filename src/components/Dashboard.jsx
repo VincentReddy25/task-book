@@ -1,4 +1,5 @@
 import { useState } from "react";
+import '../App.css'
 
 export default function Dashboard() {
   const [taskData, setTaskData] = useState([]);
@@ -36,11 +37,10 @@ export default function Dashboard() {
 
   return (
     <>
-      <div>Dashboard</div>
 
-      <form onSubmit={addTask}>
+      <form onSubmit={addTask} className="task-form">
         <input type="text" name="userInput" />
-        <input type="submit" />
+        <input type="submit" value="Add Task" />
       </form>
 
       <ol>

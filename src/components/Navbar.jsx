@@ -7,9 +7,12 @@ export default function Navbar() {
     return (
         <>
             <div className="navbar">
-                <Link to='/dashboard'>Dashboard</Link>
-                <Link to='/profile'>Profile</Link>
-                <Link to='/logout'>Logout</Link>
+                <header>TaskBook</header>
+                <nav>
+                    <Link to='/dashboard'>Dashboard</Link>
+                    <Link to='/profile'>Profile</Link>
+                    <Link to='/logout'>Logout</Link>
+                </nav>
             </div>
 
             <Routes>

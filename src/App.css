@@ -1,0 +1,28 @@
+
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: .5em;
+    
+}
+
+.navbar header {
+    font-size: 1.3em;
+}
+
+.navbar a {
+    text-decoration: none;
+    padding: .5em 1.3em;
+    margin: 0 .5em;
+
+    color: black;
+    border-bottom: 2px solid white;
+    transition: .3s;
+}
+
+.navbar a:hover {
+    border-color: black;
+}
+
