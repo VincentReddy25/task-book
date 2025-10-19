@@ -1,5 +1,7 @@
 import { Link, Routes, Route } from 'react-router-dom';
 import Dashboard from './Dashboard';
+import Profile from './Profile';
+
 
 export default function Navbar() {
     return (
