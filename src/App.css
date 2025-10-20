@@ -5,7 +5,6 @@
     justify-content: space-between;
 
     padding: .5em;
-    
 }
 
 .navbar header {
@@ -13,12 +12,12 @@
 }
 
 .navbar a {
-    text-decoration: none;
+    border-bottom: 2px solid white;
     padding: .5em 1.3em;
     margin: 0 .5em;
-
+    
     color: black;
-    border-bottom: 2px solid white;
+    text-decoration: none;
     transition: .3s;
 }
 
@@ -26,3 +25,36 @@
     border-color: black;
 }
 
+
+.task-form {
+    width: 40%;
+    margin: auto;
+
+    display: grid;
+    grid-template-columns: 80% auto;
+}
+
+.task-form input {
+    margin-top: 3em;
+    padding: .5em;
+
+    border: 1px solid black;
+    outline: none;
+
+    font-size: 1.2em;
+    letter-spacing: 2px;
+    word-spacing: 2px;
+}
+
+.task-form input:first-child {
+    border-right: none;
+}
+
+.task-form input[type="submit"] {
+    cursor: pointer;
+}
+
+.task-form input:focus {
+    background: whitesmoke;
+    transition: .3s;
+}
