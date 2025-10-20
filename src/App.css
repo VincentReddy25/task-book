@@ -58,3 +58,34 @@
     background: whitesmoke;
     transition: .3s;
 }
+
+
+.task-list {
+    width: 40%;
+    margin: 3em auto;
+}
+
+.task-list form {
+    display: grid;
+
+    grid-template-columns: 80% auto;
+
+}
+
+.task-list form input {
+    padding: .5em;
+}
+
+.tasks {
+    display: grid;
+    grid-template-columns: 70% auto auto;
+}
+
+.tasks input {
+    border: none;
+}
+
+.tasks input,
+.tasks button {
+    padding: .5em;
+}

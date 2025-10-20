@@ -43,7 +43,7 @@ export default function Dashboard() {
         <input type="submit" value="Add Task" />
       </form>
 
-      <ol>
+      <ol className="task-list">
         {taskData.map((task, index) => (
           <li key={index}>
             {editIndex === index ? (
@@ -57,9 +57,11 @@ export default function Dashboard() {
               </form>
             ) : (
               <>
+              <div className="tasks">
                 <input type="text" value={task} disabled />
                 <button onClick={() => editTask(task, index)}>Edit</button>
                 <button onClick={() => removeTask(index)}>Remove</button>
+              </div>
               </>
             )}
           </li>
