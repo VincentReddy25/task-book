@@ -1,10 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import '../App.css'
 
+const TASKS_STORAGE_KEY = "taskbook.tasks";
+
+function getSavedTasks() {
+  try {
+    const savedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+    if (!savedTasks) return [];
+
+    const tasks = JSON.parse(savedTasks);
+    if (!Array.isArray(tasks) || !tasks.every((task) => typeof task === "string")) {
+      throw new Error("Saved tasks must be an array of strings.");
+    }
+
+    return tasks;
+  } catch (error) {
+    console.error("Unable to load saved tasks from local storage.", error);
+    return [];
+  }
+}
+
 export default function Dashboard() {
-  const [taskData, setTaskData] = useState([]);
+  const [taskData, setTaskData] = useState(getSavedTasks);
   const [editIndex, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState("");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(taskData));
+    } catch (error) {
+      console.error("Unable to save tasks to local storage.", error);
+    }
+  }, [taskData]);
 
   const addTask = (e) => {
     e.preventDefault();
