@@ -3,17 +3,40 @@ import '../App.css'
 
 const TASKS_STORAGE_KEY = "taskbook.tasks";
 
+function createTask(text, completed = false) {
+  return {
+    id: `${Date.now()}-${Math.random()}`,
+    text,
+    completed,
+  };
+}
+
 function getSavedTasks() {
   try {
     const savedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
     if (!savedTasks) return [];
 
     const tasks = JSON.parse(savedTasks);
-    if (!Array.isArray(tasks) || !tasks.every((task) => typeof task === "string")) {
-      throw new Error("Saved tasks must be an array of strings.");
+    if (!Array.isArray(tasks)) {
+      throw new Error("Saved tasks must be an array.");
     }
 
-    return tasks;
+    return tasks.map((task) => {
+      if (typeof task === "string") {
+        return createTask(task);
+      }
+
+      if (
+        task &&
+        typeof task.id === "string" &&
+        typeof task.text === "string" &&
+        typeof task.completed === "boolean"
+      ) {
+        return task;
+      }
+
+      throw new Error("Saved task data is invalid.");
+    });
   } catch (error) {
     console.error("Unable to load saved tasks from local storage.", error);
     return [];
@@ -36,64 +59,132 @@ export default function Dashboard() {
   const addTask = (e) => {
     e.preventDefault();
 
-    let task = e.target.userInput.value.trim();
+    const task = e.target.userInput.value.trim();
 
     if (task) {
-      setTaskData((prev) => [...prev, task]);
+      setTaskData((prev) => [...prev, createTask(task)]);
       e.target.userInput.value = "";
     }
   };
 
-  const removeTask = (indexToRemove) => {
-    setTaskData((prev) => prev.filter((_, index) => index !== indexToRemove));
+  const markTaskDone = (taskId) => {
+    setTaskData((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, completed: true } : task,
+      ),
+    );
   };
 
-  const editTask = (task, index) => {
-    setEditIndex(index);
-    setEditValue(task);
+  const reassignTask = (taskId) => {
+    setTaskData((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, completed: false } : task,
+      ),
+    );
   };
 
-  const saveEdit = (e, index) => {
+  const deleteTask = (taskId) => {
+    setTaskData((prev) => prev.filter((task) => task.id !== taskId));
+  };
+
+  const editTask = (task) => {
+    setEditIndex(task.id);
+    setEditValue(task.text);
+  };
+
+  const saveEdit = (e, taskId) => {
     e.preventDefault();
-    const updated = [...taskData];
-    updated[index] = editValue;
-    setTaskData(updated);
+
+    const updatedText = editValue.trim();
+    if (updatedText) {
+      setTaskData((prev) =>
+        prev.map((task) =>
+          task.id === taskId ? { ...task, text: updatedText } : task,
+        ),
+      );
+    }
+
     setEditIndex(null);
     setEditValue("");
   };
 
+  const activeTasks = taskData.filter((task) => !task.completed);
+  const completedTasks = taskData.filter((task) => task.completed);
+
+  const renderTaskList = (tasks, completed = false) => (
+    <ol className="task-list">
+      {tasks.map((task) => (
+        <li key={task.id}>
+          {!completed && editIndex === task.id ? (
+            <form onSubmit={(e) => saveEdit(e, task.id)}>
+              <input
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                aria-label="Edit task"
+                autoFocus
+              />
+              <button type="submit">Save</button>
+            </form>
+          ) : (
+            <div className={`tasks${completed ? " is-completed" : ""}`}>
+              <span>{task.text}</span>
+              {completed ? (
+                <>
+                  <button type="button" onClick={() => reassignTask(task.id)}>
+                    Reassign
+                  </button>
+                  <button
+                    type="button"
+                    className="task-action-delete"
+                    onClick={() => deleteTask(task.id)}
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={() => editTask(task)}>
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="task-action-done"
+                    onClick={() => markTaskDone(task.id)}
+                  >
+                    Done
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+
   return (
     <>
-
       <form onSubmit={addTask} className="task-form">
-        <input type="text" name="userInput" />
+        <input type="text" name="userInput" placeholder="What needs to get done?" />
         <input type="submit" value="Add Task" />
       </form>
 
-      <ol className="task-list">
-        {taskData.map((task, index) => (
-          <li key={index}>
-            {editIndex === index ? (
-              <form onSubmit={(e) => saveEdit(e, index)}>
-                <input
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                />
-                <button type="submit">Save</button>
-              </form>
-            ) : (
-              <>
-              <div className="tasks">
-                <input type="text" value={task} disabled />
-                <button onClick={() => editTask(task, index)}>Edit</button>
-                <button onClick={() => removeTask(index)}>Remove</button>
-              </div>
-              </>
-            )}
-          </li>
-        ))}
-      </ol>
+      <div className="task-sections">
+        <section className="task-section" aria-labelledby="active-tasks-heading">
+          <h2 id="active-tasks-heading">Uncompleted <span>{activeTasks.length}</span></h2>
+          {activeTasks.length > 0 ? renderTaskList(activeTasks) : (
+            <p className="empty-state">No uncompleted tasks.</p>
+          )}
+        </section>
+
+        <section className="task-section" aria-labelledby="completed-tasks-heading">
+          <h2 id="completed-tasks-heading">Completed <span>{completedTasks.length}</span></h2>
+          {completedTasks.length > 0 ? renderTaskList(completedTasks, true) : (
+            <p className="empty-state">Completed tasks will appear here.</p>
+          )}
+        </section>
+      </div>
     </>
   );
 }
