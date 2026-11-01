@@ -47,6 +47,11 @@ export default function Dashboard() {
   const [taskData, setTaskData] = useState(getSavedTasks);
   const [editIndex, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [expandedTaskIds, setExpandedTaskIds] = useState(() => new Set());
+  const [openSections, setOpenSections] = useState({
+    active: true,
+    completed: true,
+  });
 
   useEffect(() => {
     try {
@@ -108,6 +113,22 @@ export default function Dashboard() {
     setEditValue("");
   };
 
+  const toggleTaskText = (taskId) => {
+    setExpandedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSection = (section) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
   const activeTasks = taskData.filter((task) => !task.completed);
   const completedTasks = taskData.filter((task) => task.completed);
 
@@ -128,7 +149,23 @@ export default function Dashboard() {
             </form>
           ) : (
             <div className={`tasks${completed ? " is-completed" : ""}`}>
-              <span>{task.text}</span>
+              <div className="task-copy">
+                <span>
+                  {task.text.length > 120 && !expandedTaskIds.has(task.id)
+                    ? `${task.text.slice(0, 120).trimEnd()}...`
+                    : task.text}
+                </span>
+                {task.text.length > 120 && (
+                  <button
+                    type="button"
+                    className="task-read-more"
+                    aria-expanded={expandedTaskIds.has(task.id)}
+                    onClick={() => toggleTaskText(task.id)}
+                  >
+                    {expandedTaskIds.has(task.id) ? "Read less" : "Read more"}
+                  </button>
+                )}
+              </div>
               {completed ? (
                 <>
                   <button type="button" onClick={() => reassignTask(task.id)}>
@@ -172,17 +209,49 @@ export default function Dashboard() {
 
       <div className="task-sections">
         <section className="task-section" aria-labelledby="active-tasks-heading">
-          <h2 id="active-tasks-heading">Uncompleted <span>{activeTasks.length}</span></h2>
-          {activeTasks.length > 0 ? renderTaskList(activeTasks) : (
-            <p className="empty-state">No uncompleted tasks.</p>
-          )}
+          <button
+            type="button"
+            className="task-section-toggle"
+            id="active-tasks-heading"
+            aria-expanded={openSections.active}
+            aria-controls="active-tasks-panel"
+            onClick={() => toggleSection("active")}
+          >
+            <span>Uncompleted <span className="task-count">{activeTasks.length}</span></span>
+            <span className="accordion-icon" aria-hidden="true">{openSections.active ? "−" : "+"}</span>
+          </button>
+          <div
+            id="active-tasks-panel"
+            className="task-section-panel"
+            hidden={!openSections.active}
+          >
+            {activeTasks.length > 0 ? renderTaskList(activeTasks) : (
+              <p className="empty-state">No uncompleted tasks.</p>
+            )}
+          </div>
         </section>
 
         <section className="task-section" aria-labelledby="completed-tasks-heading">
-          <h2 id="completed-tasks-heading">Completed <span>{completedTasks.length}</span></h2>
-          {completedTasks.length > 0 ? renderTaskList(completedTasks, true) : (
-            <p className="empty-state">Completed tasks will appear here.</p>
-          )}
+          <button
+            type="button"
+            className="task-section-toggle"
+            id="completed-tasks-heading"
+            aria-expanded={openSections.completed}
+            aria-controls="completed-tasks-panel"
+            onClick={() => toggleSection("completed")}
+          >
+            <span>Completed <span className="task-count">{completedTasks.length}</span></span>
+            <span className="accordion-icon" aria-hidden="true">{openSections.completed ? "−" : "+"}</span>
+          </button>
+          <div
+            id="completed-tasks-panel"
+            className="task-section-panel"
+            hidden={!openSections.completed}
+          >
+            {completedTasks.length > 0 ? renderTaskList(completedTasks, true) : (
+              <p className="empty-state">Completed tasks will appear here.</p>
+            )}
+          </div>
         </section>
       </div>
     </>
