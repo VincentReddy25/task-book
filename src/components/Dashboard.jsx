@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import '../App.css'
 
 const TASKS_STORAGE_KEY = "taskbook.tasks";
@@ -58,13 +58,14 @@ function getSavedTasks() {
 
 export default function Dashboard() {
   const [taskData, setTaskData] = useState(getSavedTasks);
+  const [showDeletedDialog, setShowDeletedDialog] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [expandedTaskIds, setExpandedTaskIds] = useState(() => new Set());
+  const deletedDialogRef = useRef(null);
   const [openSections, setOpenSections] = useState({
     active: true,
     completed: true,
-    deleted: true,
   });
 
   useEffect(() => {
@@ -74,6 +75,17 @@ export default function Dashboard() {
       console.error("Unable to save tasks to local storage.", error);
     }
   }, [taskData]);
+
+  useEffect(() => {
+    const dialog = deletedDialogRef.current;
+    if (!dialog) return;
+
+    if (showDeletedDialog && !dialog.open) {
+      dialog.showModal();
+    } else if (!showDeletedDialog && dialog.open) {
+      dialog.close();
+    }
+  }, [showDeletedDialog]);
 
   useEffect(() => {
     const deletedTasks = taskData.filter(
@@ -285,10 +297,28 @@ export default function Dashboard() {
 
   return (
     <>
-      <form onSubmit={addTask} className="task-form">
-        <input type="text" name="userInput" placeholder="What needs to get done?" />
-        <input type="submit" value="Add Task" />
-      </form>
+      <div className="task-entry-area">
+        <form onSubmit={addTask} className="task-form">
+          <input type="text" name="userInput" placeholder="What needs to get done?" />
+          <input type="submit" value="Add Task" />
+        </form>
+        <button
+          type="button"
+          className="recently-deleted-trigger"
+          aria-label={`Recently deleted, ${recentlyDeletedTasks.length} tasks`}
+          title="Recently deleted"
+          onClick={() => setShowDeletedDialog(true)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6" />
+          </svg>
+          {recentlyDeletedTasks.length > 0 && (
+            <span className="recently-deleted-count" aria-hidden="true">
+              {recentlyDeletedTasks.length}
+            </span>
+          )}
+        </button>
+      </div>
 
       <div className="task-sections">
         <section className="task-section" aria-labelledby="active-tasks-heading">
@@ -337,29 +367,41 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="task-section" aria-labelledby="deleted-tasks-heading">
+      </div>
+
+      <dialog
+        ref={deletedDialogRef}
+        className="deleted-dialog"
+        aria-labelledby="deleted-dialog-title"
+        onClose={() => setShowDeletedDialog(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            setShowDeletedDialog(false);
+          }
+        }}
+      >
+        <div className="deleted-dialog-header">
+          <div>
+            <h2 id="deleted-dialog-title">Recently Deleted</h2>
+            <p>Deleted tasks are removed permanently after 30 days.</p>
+          </div>
           <button
             type="button"
-            className="task-section-toggle"
-            id="deleted-tasks-heading"
-            aria-expanded={openSections.deleted}
-            aria-controls="deleted-tasks-panel"
-            onClick={() => toggleSection("deleted")}
+            className="deleted-dialog-close"
+            aria-label="Close recently deleted"
+            onClick={() => setShowDeletedDialog(false)}
           >
-            <span>Recently Deleted <span className="task-count">{recentlyDeletedTasks.length}</span></span>
-            <span className="accordion-icon" aria-hidden="true">{openSections.deleted ? "−" : "+"}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
           </button>
-          <div
-            id="deleted-tasks-panel"
-            className="task-section-panel"
-            hidden={!openSections.deleted}
-          >
-            {recentlyDeletedTasks.length > 0 ? renderTaskList(recentlyDeletedTasks, false, true) : (
-              <p className="empty-state">Deleted tasks stay here for 30 days.</p>
-            )}
-          </div>
-        </section>
-      </div>
+        </div>
+        <div className="deleted-dialog-content">
+          {recentlyDeletedTasks.length > 0
+            ? renderTaskList(recentlyDeletedTasks, false, true)
+            : <p className="empty-state">Deleted tasks will appear here for 30 days.</p>}
+        </div>
+      </dialog>
     </>
   );
 }
