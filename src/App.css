@@ -190,6 +190,18 @@
   text-decoration: line-through;
 }
 
+.task-expiry {
+  display: block;
+  padding: 0 0.85rem 0.6rem;
+  color: #858980;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.tasks.is-deleted span {
+  color: #777b72;
+}
+
 .task-list button {
   padding: 0.65rem 0.85rem;
   border: 0;
@@ -228,13 +240,19 @@
   color: #833a2e;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .task-sections {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tasks .task-copy {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .task-sections {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

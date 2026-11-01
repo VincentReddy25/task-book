@@ -2,12 +2,22 @@ import { useEffect, useState } from "react";
 import '../App.css'
 
 const TASKS_STORAGE_KEY = "taskbook.tasks";
+const DELETED_TASK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function isWithinRetentionPeriod(task, now = Date.now()) {
+  return (
+    typeof task.deletedAt !== "number" ||
+    now - task.deletedAt < DELETED_TASK_RETENTION_MS
+  );
+}
 
 function createTask(text, completed = false) {
   return {
     id: `${Date.now()}-${Math.random()}`,
     text,
     completed,
+    deletedAt: null,
   };
 }
 
@@ -32,11 +42,14 @@ function getSavedTasks() {
         typeof task.text === "string" &&
         typeof task.completed === "boolean"
       ) {
-        return task;
+        return {
+          ...task,
+          deletedAt: typeof task.deletedAt === "number" ? task.deletedAt : null,
+        };
       }
 
       throw new Error("Saved task data is invalid.");
-    });
+    }).filter((task) => isWithinRetentionPeriod(task));
   } catch (error) {
     console.error("Unable to load saved tasks from local storage.", error);
     return [];
@@ -51,6 +64,7 @@ export default function Dashboard() {
   const [openSections, setOpenSections] = useState({
     active: true,
     completed: true,
+    deleted: true,
   });
 
   useEffect(() => {
@@ -59,6 +73,25 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Unable to save tasks to local storage.", error);
     }
+  }, [taskData]);
+
+  useEffect(() => {
+    const deletedTasks = taskData.filter(
+      (task) => typeof task.deletedAt === "number",
+    );
+    if (deletedTasks.length === 0) return undefined;
+
+    const nextExpiry = Math.min(
+      ...deletedTasks.map(
+        (task) => task.deletedAt + DELETED_TASK_RETENTION_MS,
+      ),
+    );
+    const timeout = window.setTimeout(() => {
+      const now = Date.now();
+      setTaskData((prev) => prev.filter((task) => isWithinRetentionPeriod(task, now)));
+    }, Math.min(Math.max(0, nextExpiry - Date.now()), MAX_TIMEOUT_MS));
+
+    return () => window.clearTimeout(timeout);
   }, [taskData]);
 
   const addTask = (e) => {
@@ -89,6 +122,22 @@ export default function Dashboard() {
   };
 
   const deleteTask = (taskId) => {
+    setTaskData((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, deletedAt: Date.now() } : task,
+      ),
+    );
+  };
+
+  const restoreTask = (taskId) => {
+    setTaskData((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, deletedAt: null } : task,
+      ),
+    );
+  };
+
+  const deleteTaskPermanently = (taskId) => {
     setTaskData((prev) => prev.filter((task) => task.id !== taskId));
   };
 
@@ -129,14 +178,21 @@ export default function Dashboard() {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const activeTasks = taskData.filter((task) => !task.completed);
-  const completedTasks = taskData.filter((task) => task.completed);
+  const activeTasks = taskData.filter(
+    (task) => !task.completed && task.deletedAt === null,
+  );
+  const completedTasks = taskData.filter(
+    (task) => task.completed && task.deletedAt === null,
+  );
+  const recentlyDeletedTasks = taskData.filter(
+    (task) => typeof task.deletedAt === "number",
+  );
 
-  const renderTaskList = (tasks, completed = false) => (
+  const renderTaskList = (tasks, completed = false, deleted = false) => (
     <ol className="task-list">
       {tasks.map((task) => (
         <li key={task.id}>
-          {!completed && editIndex === task.id ? (
+          {!completed && !deleted && editIndex === task.id ? (
             <form onSubmit={(e) => saveEdit(e, task.id)}>
               <input
                 type="text"
@@ -148,7 +204,7 @@ export default function Dashboard() {
               <button type="submit">Save</button>
             </form>
           ) : (
-            <div className={`tasks${completed ? " is-completed" : ""}`}>
+            <div className={`tasks${completed ? " is-completed" : ""}${deleted ? " is-deleted" : ""}`}>
               <div className="task-copy">
                 <span>
                   {task.text.length > 120 && !expandedTaskIds.has(task.id)
@@ -165,8 +221,35 @@ export default function Dashboard() {
                     {expandedTaskIds.has(task.id) ? "Read less" : "Read more"}
                   </button>
                 )}
+                {deleted && (
+                  <small className="task-expiry">
+                    Deleted {new Date(task.deletedAt).toLocaleDateString()} ·
+                    {" "}removed permanently in{" "}
+                    {Math.max(
+                      1,
+                      Math.ceil(
+                        (task.deletedAt + DELETED_TASK_RETENTION_MS - Date.now()) /
+                          (24 * 60 * 60 * 1000),
+                      ),
+                    )}{" "}
+                    days
+                  </small>
+                )}
               </div>
-              {completed ? (
+              {deleted ? (
+                <>
+                  <button type="button" onClick={() => restoreTask(task.id)}>
+                    Restore
+                  </button>
+                  <button
+                    type="button"
+                    className="task-action-delete"
+                    onClick={() => deleteTaskPermanently(task.id)}
+                  >
+                    Delete forever
+                  </button>
+                </>
+              ) : completed ? (
                 <>
                   <button type="button" onClick={() => reassignTask(task.id)}>
                     Reassign
@@ -250,6 +333,29 @@ export default function Dashboard() {
           >
             {completedTasks.length > 0 ? renderTaskList(completedTasks, true) : (
               <p className="empty-state">Completed tasks will appear here.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="task-section" aria-labelledby="deleted-tasks-heading">
+          <button
+            type="button"
+            className="task-section-toggle"
+            id="deleted-tasks-heading"
+            aria-expanded={openSections.deleted}
+            aria-controls="deleted-tasks-panel"
+            onClick={() => toggleSection("deleted")}
+          >
+            <span>Recently Deleted <span className="task-count">{recentlyDeletedTasks.length}</span></span>
+            <span className="accordion-icon" aria-hidden="true">{openSections.deleted ? "−" : "+"}</span>
+          </button>
+          <div
+            id="deleted-tasks-panel"
+            className="task-section-panel"
+            hidden={!openSections.deleted}
+          >
+            {recentlyDeletedTasks.length > 0 ? renderTaskList(recentlyDeletedTasks, false, true) : (
+              <p className="empty-state">Deleted tasks stay here for 30 days.</p>
             )}
           </div>
         </section>
